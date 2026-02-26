@@ -87,7 +87,7 @@ int main() {
     VKA(vkDeviceWaitIdle(context->device));
     destroySwapChain(context, &swapchain);
 
-    SDL_Vulkan_DestroySurface(context->instance, surface, nullptr);
+   VK(vkDestroySurfaceKHR(context->instance, surface, nullptr));
     exitVulkan(context);
 
     SDL_DestroyWindow(window);

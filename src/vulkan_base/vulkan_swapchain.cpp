@@ -86,6 +86,7 @@ VulkanSwapChain createSwapChain(VulkanContext* context, VkSurfaceKHR surface, Vk
 }
 
 void destroySwapChain(VulkanContext* context, VulkanSwapChain* swapChain) {
+
     if (swapChain == nullptr || swapChain->swapChain == VK_NULL_HANDLE) {
         return;
     }
