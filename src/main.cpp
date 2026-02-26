@@ -12,7 +12,9 @@ struct ApplicationState {
     VulkanSwapChain swapchain;
     VkRenderPass renderPass;
     std::vector<VkFramebuffer> framebuffers;
-    
+    VkCommandPool commandPool;
+    VkCommandBuffer commandBuffer;
+    VkFence fence;
 };
 
 bool handleMessage() {
@@ -95,17 +97,81 @@ bool initApplication(ApplicationState* app) {
         VKA(vkCreateFramebuffer(app->context->device, &createInfo, 0, &app->framebuffers[i]))
     }
 
+    {
+        VkFenceCreateInfo createInfo = { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
+        VK(vkCreateFence(app->context->device, &createInfo, nullptr, &app->fence));
+    }
+
+
+    {
+        VkCommandPoolCreateInfo createInfo = {VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
+        createInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+        createInfo.queueFamilyIndex = app->context->graphicsQueue.familyIndex;
+        VKA(vkCreateCommandPool(app->context->device, &createInfo, 0, &app->commandPool));
+    }
+    {
+        VkCommandBufferAllocateInfo allocateInfo = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
+        allocateInfo.commandPool = app->commandPool;
+        allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        allocateInfo.commandBufferCount = 1;
+        VKA(vkAllocateCommandBuffers(app->context->device, &allocateInfo, &app->commandBuffer));
+    }
+
     return true;
 }
 
-void renderApplication() {
+void renderApplication(ApplicationState* app) {
     while (handleMessage()) {
-    //VULKAN
+        static float greenChannel = 0.0f;
+        greenChannel += 0.01f;
+        if (greenChannel > 1.0f) greenChannel = 0.0f;
+        uint32_t imageIndex = 0;
+        VK(vkAcquireNextImageKHR(app->context->device, app->swapchain.swapChain, UINT64_MAX, 0, app->fence, &imageIndex));
+
+        VKA(vkResetCommandPool(app->context->device, app->commandPool, 0));
+
+        VkCommandBufferBeginInfo beginInfo = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+        VKA(vkBeginCommandBuffer(app->commandBuffer, &beginInfo));
+        {
+            VkClearValue clearValue = {0.5f, greenChannel, 0.5f, 1.0f};
+            VkRenderPassBeginInfo beginInfo = {VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
+            beginInfo.renderPass = app->renderPass;
+            beginInfo.framebuffer = app->framebuffers[imageIndex];
+            beginInfo.renderArea = {{0, 0}, {app->swapchain.width, app->swapchain.height} };
+            beginInfo.clearValueCount = 1;
+            beginInfo.pClearValues = &clearValue;
+            vkCmdBeginRenderPass(app->commandBuffer, &beginInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+
+            vkCmdEndRenderPass(app->commandBuffer);
+        }
+        VKA(vkEndCommandBuffer(app->commandBuffer));
+
+        VKA(vkWaitForFences(app->context->device, 1, &app->fence, VK_TRUE, UINT64_MAX));
+        VKA(vkResetFences(app->context->device, 1, &app->fence));
+
+        VkSubmitInfo submitInfo = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &app->commandBuffer;
+        VKA(vkQueueSubmit(app->context->graphicsQueue.queue, 1, &submitInfo, 0));
+
+        VKA(vkDeviceWaitIdle(app->context->device));
+
+        VkPresentInfoKHR presentInfo = {VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
+        presentInfo.swapchainCount = 1;
+        presentInfo.pSwapchains = &app->swapchain.swapChain;
+        presentInfo.pImageIndices = &imageIndex;
+        VK(vkQueuePresentKHR(app->context->graphicsQueue.queue, &presentInfo));
     }
 }
 
 void shutdownApplication(ApplicationState* app) {
-    VKA(vkDeviceWaitIdle(app->context->device));
+        VKA(vkDeviceWaitIdle(app->context->device));
+
+    VK(vkDestroyFence(app->context->device, app->fence, nullptr));
+    VK(vkDestroyCommandPool(app->context->device, app->commandPool, nullptr));
+
     for (uint32_t i = 0; i < app->framebuffers.size(); i++) {
         VK(vkDestroyFramebuffer(app->context->device, app->framebuffers[i], nullptr));
     }
@@ -127,7 +193,7 @@ int main() {
         return 1;
     }
 
-    renderApplication();
+    renderApplication(&app);
     shutdownApplication(&app);
     return 0;
 }
