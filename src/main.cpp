@@ -35,7 +35,8 @@ int main() {
         );
 
     if (window == NULL) {
-        LOG_ERROR("Error creating window", SDL_GetError());
+        LOG_ERROR("Error creating window: ", SDL_GetError());
+        SDL_Quit();
         return 1;
     }
 
@@ -48,13 +49,31 @@ int main() {
         return 1;
     }
 
-    VulkanContext* context = initVulkan(instanceExtensionCount, enabledInstanceExtensions, 0, 0);
+
+
+    const char* deviceExtensions[] = {
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME
+    };
+
+
+    VulkanContext* context = initVulkan(instanceExtensionCount, enabledInstanceExtensions, ARRAY_COUNT(deviceExtensions), deviceExtensions);
     if (context == nullptr) {
         LOG_ERROR("Vulkan initialization failed.");
         SDL_DestroyWindow(window);
         SDL_Quit();
         return 1;
     }
+
+    VkSurfaceKHR surface = VK_NULL_HANDLE;
+    if (!SDL_Vulkan_CreateSurface(window, context->instance, nullptr, &surface)) {
+        LOG_ERROR("SDL_Vulkan_CreateSurface failed: ", SDL_GetError());
+        exitVulkan(context);
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return 1;
+    }
+
+    VulkanSwapChain swapchain = createSwapChain(context, surface, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
 
 
     while (handleMessage()) {
@@ -65,6 +84,10 @@ int main() {
 
     }
 
+    VKA(vkDeviceWaitIdle(context->device));
+    destroySwapChain(context, &swapchain);
+
+    SDL_Vulkan_DestroySurface(context->instance, surface, nullptr);
     exitVulkan(context);
 
     SDL_DestroyWindow(window);
