@@ -80,8 +80,21 @@ VulkanSwapChain createSwapChain(VulkanContext* context, VkSurfaceKHR surface, Vk
     result.images.resize(numImages);
     VKA(vkGetSwapchainImagesKHR(context->device, result.swapChain, &numImages, result.images.data()));
 
-    delete[] availableFormats;
+    // Create image views
+    result.imageViews.resize(numImages);
+    for (uint32_t i = 0; i < numImages; i++) {
+        VkImageViewCreateInfo createInfo = {VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
+        createInfo.image = result.images[i];
 
+        createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+
+        createInfo.format = format;
+        createInfo.components = {};
+        createInfo.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+        VKA(vkCreateImageView(context->device, &createInfo, 0, &result.imageViews[i]));
+    }
+
+    delete[] availableFormats;
     return result;
 }
 
@@ -90,7 +103,14 @@ void destroySwapChain(VulkanContext* context, VulkanSwapChain* swapChain) {
     if (swapChain == nullptr || swapChain->swapChain == VK_NULL_HANDLE) {
         return;
     }
+
+    for (uint32_t i = 0; i < swapChain->imageViews.size(); i++) {
+        VK(vkDestroyImageView(context->device, swapChain->imageViews[i], nullptr));
+    }
+
     VK(vkDestroySwapchainKHR(context->device, swapChain->swapChain, nullptr));
     swapChain->swapChain = VK_NULL_HANDLE;
     swapChain->images.clear();
+
+
 }

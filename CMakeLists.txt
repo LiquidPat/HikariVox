@@ -12,7 +12,8 @@ set(SOURCE_FILES src/main.cpp
         src/logger.h
         src/vulkan_base/vulkan_base.h
         src/vulkan_base/vulkan_device.cpp
-        src/vulkan_base/vulkan_swapchain.cpp)
+        src/vulkan_base/vulkan_swapchain.cpp
+        src/vulkan_base/vulkan_renderpass.cpp)
 
 #FIND SDL3
     add_subdirectory(libs/SDL)
