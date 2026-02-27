@@ -13,16 +13,34 @@ set(SOURCE_FILES src/main.cpp
         src/vulkan_base/vulkan_base.h
         src/vulkan_base/vulkan_device.cpp
         src/vulkan_base/vulkan_swapchain.cpp
-        src/vulkan_base/vulkan_renderpass.cpp)
+        src/vulkan_base/vulkan_renderpass.cpp
+        src/vulkan_base/vulkan_pipeline.cpp
+        src/vulkan_base/vulkan_utils.cpp)
 
 #FIND SDL3
     add_subdirectory(libs/SDL)
 #FIND Vulkan
 find_package(Vulkan REQUIRED)
 
+
+if (UNIX)
+    add_custom_target(build_shaders ALL
+    COMMAND "${PROJECT_SOURCE_DIR}/shaders/compile.sh"
+    WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/shaders"
+    )
+endif (UNIX)
+
+if (WIN32)
+    add_custom_target(build_shaders ALL
+    COMMAND "${PROJECT_SOURCE_DIR}/shaders/compile.bat"
+    WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/shaders"
+    )
+endif (WIN32)
+
 # HikariVox Exe
 
 add_executable(HikariVox ${SOURCE_FILES})
+add_dependencies(HikariVox build_shaders)
 target_link_libraries(HikariVox PRIVATE SDL3::SDL3)
 target_include_directories(HikariVox PUBLIC ${Vulkan_INCLUDE_DIRS})
 target_link_libraries(HikariVox PUBLIC ${Vulkan_LIBRARIES})

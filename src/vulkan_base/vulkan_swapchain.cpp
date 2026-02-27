@@ -52,7 +52,7 @@ VulkanSwapChain createSwapChain(VulkanContext* context, VkSurfaceKHR surface, Vk
     createInfo.imageArrayLayers = 1;
     createInfo.imageUsage = usage;
     createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    createInfo.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+    createInfo.preTransform = surfaceCapabilities.currentTransform;
     createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
     createInfo.presentMode = VK_PRESENT_MODE_FIFO_KHR;
     if (VK(vkCreateSwapchainKHR(context->device, &createInfo, nullptr, &result.swapChain)) != VK_SUCCESS) {
@@ -111,6 +111,7 @@ void destroySwapChain(VulkanContext* context, VulkanSwapChain* swapChain) {
     VK(vkDestroySwapchainKHR(context->device, swapChain->swapChain, nullptr));
     swapChain->swapChain = VK_NULL_HANDLE;
     swapChain->images.clear();
+    swapChain->imageViews.clear();
 
 
 }
